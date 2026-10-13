@@ -1,4 +1,4 @@
-alert("JavaScript loaded!");
+alert("JavaScript is running!");
 body {
     font-family: Arial, sans-serif;
     text-align: center;
