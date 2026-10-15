@@ -58,7 +58,6 @@ export default function Index() {
   const [score, setScore] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [finished, setFinished] = useState(false);
-
   const [scoreHistory, setScoreHistory] = useState<ScoreRecord[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [savingScore, setSavingScore] = useState(false);
@@ -89,7 +88,6 @@ export default function Index() {
       }
     }
 
-    setHistoryLoaded(false);
     void loadScores();
 
     return () => {
@@ -218,7 +216,10 @@ export default function Index() {
           )}
 
           <Pressable
-            style={styles.button}
+            style={[
+              styles.button,
+              savingScore ? styles.disabledButton : null,
+            ]}
             onPress={restartGame}
             disabled={savingScore}
           >
@@ -269,7 +270,10 @@ export default function Index() {
               </Text>
 
               <Pressable
-                style={styles.button}
+                style={[
+                  styles.button,
+                  savingScore ? styles.disabledButton : null,
+                ]}
                 onPress={() => void nextQuestion()}
                 disabled={savingScore}
               >
@@ -304,6 +308,7 @@ export default function Index() {
               <Text style={styles.historyScore}>
                 {record.score} / {record.totalQuestions}
               </Text>
+
               <Text style={styles.historyDate}>
                 {new Date(record.completedAt).toLocaleString()}
               </Text>
@@ -396,6 +401,9 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 10,
     alignItems: "center",
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
   buttonText: {
     color: "#ffffff",
