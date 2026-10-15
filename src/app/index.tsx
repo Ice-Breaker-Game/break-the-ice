@@ -1,9 +1,13 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Map } from "@maplibre/maplibre-react-native";
+import { StyleSheet, View } from "react-native";
 
 export default function Index() {
   return (
     <View style={styles.container}>
-      <Text>Edit src/app/index.tsx to edit this screen.</Text>
+      <Map
+        style={styles.map}
+        mapStyle="https://demotiles.maplibre.org/style.json"
+      />
     </View>
   );
 }
@@ -11,7 +15,8 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+  },
+  map: {
+    flex: 1,
   },
 });
