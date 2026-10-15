@@ -57,10 +57,12 @@ const icebreakerPrompts = [
 
 export default function Index() {
   const { user } = useAuth();
+  
   const [matchStarted, setMatchStarted] = useState(false);
   const [selectedMinigame, setSelectedMinigame] =
     useState<Minigame>("question-challenge");
   const [promptIndex, setPromptIndex] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(60);
 
   const storageKey = `question-challenge-scores-${
     user?.uid ?? user?.email ?? "guest"
@@ -69,6 +71,7 @@ export default function Index() {
   const [questionIndex, setQuestionIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
+  const [timeExpired, setTimeExpired] = useState(false);
   const [finished, setFinished] = useState(false);
   const [scoreHistory, setScoreHistory] = useState<ScoreRecord[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
@@ -106,6 +109,28 @@ export default function Index() {
       active = false;
     };
   }, [storageKey]);
+  
+  useEffect(() => {
+    if (!matchStarted || finished) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setTimeLeft((previousTime) => {
+        
+if (previousTime <= 1) {
+  clearInterval(timer);
+  setTimeExpired(true);
+  setFinished(true);
+  return 0;
+}
+
+        return previousTime - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [matchStarted, finished]);
 
   const currentQuestion = questions[questionIndex];
 
@@ -173,8 +198,11 @@ function startMatch() {
   const randomIndex = Math.floor(Math.random() * minigames.length);
   const chosenMinigame = minigames[randomIndex];
 
-  setSelectedMinigame(chosenMinigame);
-  setMatchStarted(true);
+    setSelectedMinigame(chosenMinigame);
+setTimeLeft(60);
+setTimeExpired(false);
+setMatchStarted(true);
+setFinished(false);
 
   if (chosenMinigame === "question-challenge") {
     setQuestionIndex(0);
@@ -194,7 +222,9 @@ function startMatch() {
   setScore(0);
   setSelectedAnswer(null);
   setFinished(false);
+  setTimeExpired(false);
   setSaveMessage("");
+  setTimeLeft(60);
   setMatchStarted(false);
 }
 
@@ -224,16 +254,52 @@ function startMatch() {
       <Text style={styles.userText}>
         Logged in as {user?.email ?? "Student"}
       </Text>
+            {matchStarted && (
+        <Text style={styles.score}>
+          Time left: {timeLeft} seconds
+        </Text>
+      )}
 
-     {!matchStarted ? (
+{!matchStarted ? (
   <View style={styles.card}>
     <Text style={styles.question}>Ready to play?</Text>
     <Text style={styles.feedback}>
       Start a match and let the app choose your minigame.
     </Text>
-
     <Pressable style={styles.button} onPress={startMatch}>
       <Text style={styles.buttonText}>Start Match</Text>
+    </Pressable>
+  </View>
+) : finished ? (
+  <View style={styles.card}>
+    <Text style={styles.question}>
+      {timeExpired ? "Time's up!" : "Game complete!"}
+    </Text>
+
+    {selectedMinigame === "question-challenge" ? (
+      <>
+        <Text style={styles.score}>
+          Your score: {score} / {questions.length}
+        </Text>
+        <Text style={styles.feedback}>
+          {timeExpired
+            ? "Time ran out. Nice effort!"
+            : score === questions.length
+              ? "Perfect score! Great job!"
+              : "Nice effort! Play again to improve your score."}
+        </Text>
+        {!!saveMessage && (
+          <Text style={styles.feedback}>{saveMessage}</Text>
+        )}
+      </>
+    ) : (
+      <Text style={styles.feedback}>
+        Your minigame has ended. Start another match to play again!
+      </Text>
+    )}
+
+    <Pressable style={styles.button} onPress={restartGame}>
+      <Text style={styles.buttonText}>Play Again</Text>
     </Pressable>
   </View>
 ) : selectedMinigame === "icebreaker-prompt" ? (
@@ -260,120 +326,73 @@ function startMatch() {
 
     <Pressable
       style={styles.button}
-      onPress={() => setMatchStarted(false)}
+      onPress={() => {
+        setTimeLeft(60);
+        setTimeExpired(false);
+        setMatchStarted(false);
+        setFinished(false);
+      }}
     >
       <Text style={styles.buttonText}>Back to Match Menu</Text>
     </Pressable>
   </View>
-) : finished ? (
-        <View style={styles.card}>
-          <Text style={styles.question}>Game complete!</Text>
+) : (
+  <View style={styles.card}>
+    <Text style={styles.progress}>
+      Question {questionIndex + 1} of {questions.length}
+    </Text>
+    <Text style={styles.question}>
+      {currentQuestion.question}
+    </Text>
 
-          <Text style={styles.score}>
-            Your score: {score} / {questions.length}
+    {currentQuestion.answers.map((answer, index) => {
+      const isCorrect = index === currentQuestion.correctAnswer;
+      const isSelected = index === selectedAnswer;
+
+      return (
+        <Pressable
+          key={answer}
+          style={[
+            styles.answer,
+            selectedAnswer !== null && isCorrect
+              ? styles.correctAnswer
+              : null,
+            isSelected && !isCorrect ? styles.wrongAnswer : null,
+          ]}
+          onPress={() => chooseAnswer(index)}
+          disabled={selectedAnswer !== null || finished}
+        >
+          <Text style={styles.answerText}>{answer}</Text>
+        </Pressable>
+      );
+    })}
+
+    {selectedAnswer !== null && (
+      <>
+        <Text style={styles.feedback}>
+          {selectedAnswer === currentQuestion.correctAnswer
+            ? "Correct! Well done."
+            : "Not quite! The correct answer is highlighted."}
+        </Text>
+        <Pressable
+          style={styles.button}
+          onPress={() => void nextQuestion()}
+          disabled={savingScore}
+        >
+          <Text style={styles.buttonText}>
+            {questionIndex === questions.length - 1
+              ? "Finish Game"
+              : "Next Question"}
           </Text>
+        </Pressable>
+      </>
+    )}
 
-          <Text style={styles.feedback}>
-            {score === questions.length
-              ? "Perfect score! Great job!"
-              : "Nice effort! Play again to improve your score."}
-          </Text>
-
-          {savingScore && (
-            <View style={styles.savingRow}>
-              <ActivityIndicator color="#0e7490" />
-              <Text style={styles.feedback}>Saving your score...</Text>
-            </View>
-          )}
-
-          {!!saveMessage && (
-            <Text
-              style={
-                saveMessage.startsWith("Score saved")
-                  ? styles.successMessage
-                  : styles.errorMessage
-              }
-            >
-              {saveMessage}
-            </Text>
-          )}
-
-          <Pressable
-            style={[
-              styles.button,
-              savingScore ? styles.disabledButton : null,
-            ]}
-            onPress={restartGame}
-            disabled={savingScore}
-          >
-            <Text style={styles.buttonText}>Play Again</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <View style={styles.card}>
-          <Text style={styles.progress}>
-            Question {questionIndex + 1} of {questions.length}
-          </Text>
-
-          <Text style={styles.question}>
-            {currentQuestion.question}
-          </Text>
-
-          {currentQuestion.answers.map((answer, index) => {
-            const isCorrect =
-              index === currentQuestion.correctAnswer;
-            const isSelected = index === selectedAnswer;
-
-            return (
-              <Pressable
-                key={answer}
-                style={[
-                  styles.answer,
-                  selectedAnswer !== null && isCorrect
-                    ? styles.correctAnswer
-                    : null,
-                  isSelected && !isCorrect
-                    ? styles.wrongAnswer
-                    : null,
-                ]}
-                onPress={() => chooseAnswer(index)}
-                disabled={selectedAnswer !== null}
-              >
-                <Text style={styles.answerText}>{answer}</Text>
-              </Pressable>
-            );
-          })}
-
-          {selectedAnswer !== null && (
-            <>
-              <Text style={styles.feedback}>
-                {selectedAnswer === currentQuestion.correctAnswer
-                  ? "Correct! Well done."
-                  : "Not quite! The correct answer is highlighted."}
-              </Text>
-
-              <Pressable
-                style={[
-                  styles.button,
-                  savingScore ? styles.disabledButton : null,
-                ]}
-                onPress={() => void nextQuestion()}
-                disabled={savingScore}
-              >
-                <Text style={styles.buttonText}>
-                  {questionIndex === questions.length - 1
-                    ? "Finish Game"
-                    : "Next Question"}
-                </Text>
-              </Pressable>
-            </>
-          )}
-
-          <Text style={styles.score}>
-            Score: {score} / {questions.length}
-          </Text>
-        </View>
-      )}
+    <Text style={styles.score}>
+      Score: {score} / {questions.length}
+    </Text>
+  </View>
+)}
 
       <View style={styles.historyCard}>
         <Text style={styles.historyTitle}>Saved Score History</Text>
