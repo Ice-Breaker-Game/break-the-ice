@@ -229,10 +229,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
   },
-  buttonText: {
+   buttonText: {
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "bold",
   },
 });
-```
