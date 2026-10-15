@@ -46,9 +46,21 @@ type ScoreRecord = {
   totalQuestions: number;
   completedAt: string;
 };
+type Minigame = "question-challenge" | "icebreaker-prompt";
+
+const icebreakerPrompts = [
+  "What is one new skill you would like to learn?",
+  "What is your favorite way to spend a weekend?",
+  "If you could visit anywhere, where would you go?",
+  "What is something that always makes you smile?",
+];
 
 export default function Index() {
   const { user } = useAuth();
+  const [matchStarted, setMatchStarted] = useState(false);
+  const [selectedMinigame, setSelectedMinigame] =
+    useState<Minigame>("question-challenge");
+  const [promptIndex, setPromptIndex] = useState(0);
 
   const storageKey = `question-challenge-scores-${
     user?.uid ?? user?.email ?? "guest"
@@ -152,14 +164,39 @@ export default function Index() {
     setQuestionIndex((previousIndex) => previousIndex + 1);
     setSelectedAnswer(null);
   }
+function startMatch() {
+  const minigames: Minigame[] = [
+    "question-challenge",
+    "icebreaker-prompt",
+  ];
 
-  function restartGame() {
+  const randomIndex = Math.floor(Math.random() * minigames.length);
+  const chosenMinigame = minigames[randomIndex];
+
+  setSelectedMinigame(chosenMinigame);
+  setMatchStarted(true);
+
+  if (chosenMinigame === "question-challenge") {
     setQuestionIndex(0);
     setScore(0);
     setSelectedAnswer(null);
     setFinished(false);
     setSaveMessage("");
+  } else {
+    const randomPromptIndex = Math.floor(
+      Math.random() * icebreakerPrompts.length
+    );
+    setPromptIndex(randomPromptIndex);
   }
+}
+  function restartGame() {
+  setQuestionIndex(0);
+  setScore(0);
+  setSelectedAnswer(null);
+  setFinished(false);
+  setSaveMessage("");
+  setMatchStarted(false);
+}
 
   if (!historyLoaded) {
     return (
@@ -176,13 +213,59 @@ export default function Index() {
       keyboardShouldPersistTaps="handled"
     >
       <Text style={styles.title}>Ice Breaker</Text>
-      <Text style={styles.subtitle}>Question Challenge</Text>
+      <Text style={styles.subtitle}>
+  {!matchStarted
+    ? "Random Minigame Selection"
+    : selectedMinigame === "icebreaker-prompt"
+      ? "Icebreaker Prompt"
+      : "Question Challenge"}
+</Text>
 
       <Text style={styles.userText}>
         Logged in as {user?.email ?? "Student"}
       </Text>
 
-      {finished ? (
+     {!matchStarted ? (
+  <View style={styles.card}>
+    <Text style={styles.question}>Ready to play?</Text>
+    <Text style={styles.feedback}>
+      Start a match and let the app choose your minigame.
+    </Text>
+
+    <Pressable style={styles.button} onPress={startMatch}>
+      <Text style={styles.buttonText}>Start Match</Text>
+    </Pressable>
+  </View>
+) : selectedMinigame === "icebreaker-prompt" ? (
+  <View style={styles.card}>
+    <Text style={styles.question}>Icebreaker Prompt</Text>
+    <Text style={styles.feedback}>
+      Take turns answering this question!
+    </Text>
+    <Text style={styles.question}>
+      {icebreakerPrompts[promptIndex]}
+    </Text>
+
+    <Pressable
+      style={styles.button}
+      onPress={() =>
+        setPromptIndex(
+          (previousIndex) =>
+            (previousIndex + 1) % icebreakerPrompts.length
+        )
+      }
+    >
+      <Text style={styles.buttonText}>Next Prompt</Text>
+    </Pressable>
+
+    <Pressable
+      style={styles.button}
+      onPress={() => setMatchStarted(false)}
+    >
+      <Text style={styles.buttonText}>Back to Match Menu</Text>
+    </Pressable>
+  </View>
+) : finished ? (
         <View style={styles.card}>
           <Text style={styles.question}>Game complete!</Text>
 
