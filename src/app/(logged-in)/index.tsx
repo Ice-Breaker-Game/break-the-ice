@@ -1,5 +1,9 @@
-
-import {useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ActivityIndicator,
@@ -152,37 +156,39 @@ if (previousTime <= 1) {
     }
   }
 
- const finishGame = useCallback(async () => {
-    const record: ScoreRecord = {
-      score,
-      totalQuestions: questions.length,
-      completedAt: new Date().toISOString(),
-    }
-    };
- 
-    setFinished(true);
-    setSavingScore(true);
-    setSaveMessage("");
+const finishGame = useCallback(async () => {
+  if (scoreSaveStarted.current) return;
 
-    try {
-      const updatedHistory = [record, ...scoreHistory];
+  scoreSaveStarted.current = true;
+  setFinished(true);
+  setSavingScore(true);
+  setSaveMessage("");
 
-      await AsyncStorage.setItem(
-        storageKey,
-        JSON.stringify(updatedHistory)
-      );
+  const record: ScoreRecord = {
+    score,
+    totalQuestions: questions.length,
+    completedAt: new Date().toISOString(),
+  };
 
-      setScoreHistory(updatedHistory);
-      setSaveMessage("Score saved successfully on this device!");
-    } catch {
-      setSaveMessage(
-        "Your game is complete, but the score could not be saved. Please try again."
-      );
-    } finally {
-      setSavingScore(false);
-    }
+  try {
+    const updatedHistory = [record, ...scoreHistory];
+
+    await AsyncStorage.setItem(
+      storageKey,
+      JSON.stringify(updatedHistory)
+    );
+
+    setScoreHistory(updatedHistory);
+    setSaveMessage("Score saved successfully on this device!");
+  } catch {
+    setSaveMessage(
+      "Your game is complete, but the score could not be saved. Please try again."
+    );
+    scoreSaveStarted.current = false;
+  } finally {
+    setSavingScore(false);
   }
-
+}, [score, scoreHistory, storageKey]);
   async function nextQuestion() {
     if (selectedAnswer === null || savingScore) {
       return;
