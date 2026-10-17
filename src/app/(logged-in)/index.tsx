@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import {useCallback, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ActivityIndicator,
@@ -136,7 +136,7 @@ if (previousTime <= 1) {
     }, 1000);
 
     return () => clearInterval(timer);
- }, [matchStarted, finished, selectedMinigame]);
+}, [matchStarted, finished, selectedMinigame, finishGame]);
 
   const currentQuestion = questions[questionIndex];
 
@@ -152,13 +152,14 @@ if (previousTime <= 1) {
     }
   }
 
-  async function finishGame() {
+ const finishGame = useCallback(async () => {
     const record: ScoreRecord = {
       score,
       totalQuestions: questions.length,
       completedAt: new Date().toISOString(),
+    }
     };
-
+ 
     setFinished(true);
     setSavingScore(true);
     setSaveMessage("");
