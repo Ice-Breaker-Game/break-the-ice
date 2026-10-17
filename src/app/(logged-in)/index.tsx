@@ -121,7 +121,13 @@ export default function Index() {
 if (previousTime <= 1) {
   clearInterval(timer);
   setTimeExpired(true);
-  setFinished(true);
+
+  if (selectedMinigame === "question-challenge") {
+    void finishGame();
+  } else {
+    setFinished(true);
+  }
+
   return 0;
 }
 
@@ -130,7 +136,7 @@ if (previousTime <= 1) {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [matchStarted, finished]);
+ }, [matchStarted, finished, selectedMinigame]);
 
   const currentQuestion = questions[questionIndex];
 
