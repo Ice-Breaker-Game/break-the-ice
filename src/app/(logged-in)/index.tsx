@@ -1,5 +1,4 @@
-
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ActivityIndicator,
@@ -136,7 +135,7 @@ if (previousTime <= 1) {
     }, 1000);
 
     return () => clearInterval(timer);
- }, [matchStarted, finished, selectedMinigame]);
+}, [matchStarted, finished, selectedMinigame, finishGame]);
 
   const currentQuestion = questions[questionIndex];
 
@@ -152,36 +151,39 @@ if (previousTime <= 1) {
     }
   }
 
-  async function finishGame() {
-    const record: ScoreRecord = {
-      score,
-      totalQuestions: questions.length,
-      completedAt: new Date().toISOString(),
-    };
+const finishGame = useCallback(async () => {
+  if (scoreSaveStarted.current) return;
 
-    setFinished(true);
-    setSavingScore(true);
-    setSaveMessage("");
+  scoreSaveStarted.current = true;
+  setFinished(true);
+  setSavingScore(true);
+  setSaveMessage("");
 
-    try {
-      const updatedHistory = [record, ...scoreHistory];
+  const record: ScoreRecord = {
+    score,
+    totalQuestions: questions.length,
+    completedAt: new Date().toISOString(),
+  };
 
-      await AsyncStorage.setItem(
-        storageKey,
-        JSON.stringify(updatedHistory)
-      );
+  try {
+    const updatedHistory = [record, ...scoreHistory];
 
-      setScoreHistory(updatedHistory);
-      setSaveMessage("Score saved successfully on this device!");
-    } catch {
-      setSaveMessage(
-        "Your game is complete, but the score could not be saved. Please try again."
-      );
-    } finally {
-      setSavingScore(false);
-    }
+    await AsyncStorage.setItem(
+      storageKey,
+      JSON.stringify(updatedHistory)
+    );
+
+    setScoreHistory(updatedHistory);
+    setSaveMessage("Score saved successfully on this device!");
+  } catch {
+    setSaveMessage(
+      "Your game is complete, but the score could not be saved. Please try again."
+    );
+    scoreSaveStarted.current = false;
+  } finally {
+    setSavingScore(false);
   }
-
+}, [score, scoreHistory, storageKey]);
   async function nextQuestion() {
     if (selectedAnswer === null || savingScore) {
       return;
