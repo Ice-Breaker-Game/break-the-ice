@@ -149,7 +149,7 @@ export default function Index() {
       }
     }
 
-    setHistoryLoaded(false);
+
     void loadScores();
 
     return () => {
