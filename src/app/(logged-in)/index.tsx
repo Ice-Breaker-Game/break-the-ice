@@ -161,42 +161,41 @@ export default function Index() {
   // The updater only calculates the next time value; it does not
   // perform other state updates or save scores.
   useEffect(() => {
-    if (!matchStarted || finished) {
-      return;
-    }
+  if (!matchStarted || finished) {
+    return;
+  }
 
-    const timer = setInterval(() => {
-      setTimeLeft((previousTime) =>
-        Math.max(0, previousTime - 1)
-      );
-    }, 1000);
+  const timer = setInterval(() => {
+    setTimeLeft((previousTime) => {
+      if (previousTime <= 1) {
+        clearInterval(timer);
+        return 0;
+      }
 
-    return () => clearInterval(timer);
-  }, [matchStarted, finished]);
+      return previousTime - 1;
+    });
+  }, 1000);
 
-  // Handle the timeout separately from the countdown updater.
-  useEffect(() => {
-    if (!matchStarted || finished || timeLeft !== 0) {
-      return;
-    }
+  return () => clearInterval(timer);
+}, [matchStarted, finished]);
 
-    setTimeExpired(true);
+useEffect(() => {
+  if (!matchStarted || finished || timeLeft !== 0) {
+    return;
+  }
 
-    if (selectedMinigame === "question-challenge") {
-      void finishGame();
-    } else {
-      setFinished(true);
-    }
-  }, [
-    matchStarted,
-    finished,
-    timeLeft,
-    selectedMinigame,
-    score,
-    scoreHistory,
-    storageKey,
-  ]);
-
+  if (selectedMinigame === "question-challenge") {
+    void finishGame();
+  } else {
+    setFinished(true);
+  }
+}, [
+  matchStarted,
+  finished,
+  timeLeft,
+  selectedMinigame,
+  finishGame,
+]);
   function chooseAnswer(answerIndex: number) {
     if (selectedAnswer !== null || finished) {
       return;
