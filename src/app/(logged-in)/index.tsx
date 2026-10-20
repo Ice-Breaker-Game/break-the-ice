@@ -161,34 +161,28 @@ export default function Index() {
   // The updater only calculates the next time value; it does not
   // perform other state updates or save scores.
   useEffect(() => {
-  if (!matchStarted || finished) {
+  if (!matchStarted || finished || timeLeft <= 0) {
     return;
   }
 
-  const timer = setInterval(() => {
-    setTimeLeft((previousTime) => {
-      if (previousTime <= 1) {
-        clearInterval(timer);
-        return 0;
-      }
+  const timer = setTimeout(() => {
+    const nextTime = timeLeft - 1;
+    setTimeLeft(nextTime);
 
-      return previousTime - 1;
-    });
+    if (nextTime !== 0) {
+      return;
+    }
+
+    setTimeExpired(true);
+
+    if (selectedMinigame === "question-challenge") {
+      void finishGame();
+    } else {
+      setFinished(true);
+    }
   }, 1000);
 
-  return () => clearInterval(timer);
-}, [matchStarted, finished]);
-
-useEffect(() => {
-  if (!matchStarted || finished || timeLeft !== 0) {
-    return;
-  }
-
-  if (selectedMinigame === "question-challenge") {
-    void finishGame();
-  } else {
-    setFinished(true);
-  }
+  return () => clearTimeout(timer);
 }, [
   matchStarted,
   finished,
