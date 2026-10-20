@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ActivityIndicator,
@@ -46,6 +46,7 @@ type ScoreRecord = {
   totalQuestions: number;
   completedAt: string;
 };
+
 type Minigame = "question-challenge" | "icebreaker-prompt";
 
 const icebreakerPrompts = [
@@ -57,16 +58,12 @@ const icebreakerPrompts = [
 
 export default function Index() {
   const { user } = useAuth();
-  
+
   const [matchStarted, setMatchStarted] = useState(false);
   const [selectedMinigame, setSelectedMinigame] =
     useState<Minigame>("question-challenge");
   const [promptIndex, setPromptIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60);
-
-  const storageKey = `question-challenge-scores-${
-    user?.uid ?? user?.email ?? "guest"
-  }`;
 
   const [questionIndex, setQuestionIndex] = useState(0);
   const [score, setScore] = useState(0);
@@ -78,6 +75,55 @@ export default function Index() {
   const [savingScore, setSavingScore] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
 
+  // Prevent the same game from saving its score more than once.
+  const scoreSaveStarted = useRef(false);
+
+  const storageKey = `question-challenge-scores-${
+    user?.uid ?? user?.email ?? "guest"
+  }`;
+
+  const currentQuestion = questions[questionIndex];
+
+  // Save the result when the game finishes.
+  async function finishGame() {
+    if (scoreSaveStarted.current) {
+      return;
+    }
+
+    scoreSaveStarted.current = true;
+    setFinished(true);
+    setSavingScore(true);
+    setSaveMessage("");
+
+    const record: ScoreRecord = {
+      score,
+      totalQuestions: questions.length,
+      completedAt: new Date().toISOString(),
+    };
+
+    try {
+      const updatedHistory = [record, ...scoreHistory];
+
+      await AsyncStorage.setItem(
+        storageKey,
+        JSON.stringify(updatedHistory)
+      );
+
+      setScoreHistory(updatedHistory);
+      setSaveMessage("Score saved successfully on this device!");
+    } catch {
+      setSaveMessage(
+        "Your game is complete, but the score could not be saved. Please try again."
+      );
+
+      // Allow a retry if saving failed.
+      scoreSaveStarted.current = false;
+    } finally {
+      setSavingScore(false);
+    }
+  }
+
+  // Load the current user's saved scores.
   useEffect(() => {
     let active = true;
 
@@ -103,43 +149,47 @@ export default function Index() {
       }
     }
 
+
     void loadScores();
 
     return () => {
       active = false;
     };
   }, [storageKey]);
-  
+
+  // Run the countdown while a game is active.
+  // The updater only calculates the next time value; it does not
+  // perform other state updates or save scores.
   useEffect(() => {
-    if (!matchStarted || finished) {
+  if (!matchStarted || finished || timeLeft <= 0) {
+    return;
+  }
+
+  const timer = setTimeout(() => {
+    const nextTime = timeLeft - 1;
+    setTimeLeft(nextTime);
+
+    if (nextTime !== 0) {
       return;
     }
 
-    const timer = setInterval(() => {
-      setTimeLeft((previousTime) => {
-        
-if (previousTime <= 1) {
-  clearInterval(timer);
-  setTimeExpired(true);
+    setTimeExpired(true);
 
-  if (selectedMinigame === "question-challenge") {
-    void finishGame();
-  } else {
-    setFinished(true);
-  }
+    if (selectedMinigame === "question-challenge") {
+      void finishGame();
+    } else {
+      setFinished(true);
+    }
+  }, 1000);
 
-  return 0;
-}
-
-        return previousTime - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
- }, [matchStarted, finished, selectedMinigame]);
-
-  const currentQuestion = questions[questionIndex];
-
+  return () => clearTimeout(timer);
+}, [
+  matchStarted,
+  finished,
+  timeLeft,
+  selectedMinigame,
+  finishGame,
+]);
   function chooseAnswer(answerIndex: number) {
     if (selectedAnswer !== null || finished) {
       return;
@@ -152,38 +202,8 @@ if (previousTime <= 1) {
     }
   }
 
-  async function finishGame() {
-    const record: ScoreRecord = {
-      score,
-      totalQuestions: questions.length,
-      completedAt: new Date().toISOString(),
-    };
-
-    setFinished(true);
-    setSavingScore(true);
-    setSaveMessage("");
-
-    try {
-      const updatedHistory = [record, ...scoreHistory];
-
-      await AsyncStorage.setItem(
-        storageKey,
-        JSON.stringify(updatedHistory)
-      );
-
-      setScoreHistory(updatedHistory);
-      setSaveMessage("Score saved successfully on this device!");
-    } catch {
-      setSaveMessage(
-        "Your game is complete, but the score could not be saved. Please try again."
-      );
-    } finally {
-      setSavingScore(false);
-    }
-  }
-
   async function nextQuestion() {
-    if (selectedAnswer === null || savingScore) {
+    if (selectedAnswer === null || savingScore || finished) {
       return;
     }
 
@@ -195,50 +215,57 @@ if (previousTime <= 1) {
     setQuestionIndex((previousIndex) => previousIndex + 1);
     setSelectedAnswer(null);
   }
-function startMatch() {
-  const minigames: Minigame[] = [
-    "question-challenge",
-    "icebreaker-prompt",
-  ];
 
-  const randomIndex = Math.floor(Math.random() * minigames.length);
-  const chosenMinigame = minigames[randomIndex];
+  function startMatch() {
+    const minigames: Minigame[] = [
+      "question-challenge",
+      "icebreaker-prompt",
+    ];
 
+    const randomIndex = Math.floor(Math.random() * minigames.length);
+    const chosenMinigame = minigames[randomIndex];
+
+    // Reset game state for the new match.
+    scoreSaveStarted.current = false;
     setSelectedMinigame(chosenMinigame);
-setTimeLeft(60);
-setTimeExpired(false);
-setMatchStarted(true);
-setFinished(false);
+    setTimeLeft(60);
+    setTimeExpired(false);
+    setFinished(false);
+    setMatchStarted(true);
+    setSaveMessage("");
 
-  if (chosenMinigame === "question-challenge") {
+    if (chosenMinigame === "question-challenge") {
+      setQuestionIndex(0);
+      setScore(0);
+      setSelectedAnswer(null);
+    } else {
+      const randomPromptIndex = Math.floor(
+        Math.random() * icebreakerPrompts.length
+      );
+
+      setPromptIndex(randomPromptIndex);
+    }
+  }
+
+  function restartGame() {
     setQuestionIndex(0);
     setScore(0);
     setSelectedAnswer(null);
     setFinished(false);
+    setTimeExpired(false);
     setSaveMessage("");
-  } else {
-    const randomPromptIndex = Math.floor(
-      Math.random() * icebreakerPrompts.length
-    );
-    setPromptIndex(randomPromptIndex);
+    setTimeLeft(60);
+    setMatchStarted(false);
+    scoreSaveStarted.current = false;
   }
-}
-  function restartGame() {
-  setQuestionIndex(0);
-  setScore(0);
-  setSelectedAnswer(null);
-  setFinished(false);
-  setTimeExpired(false);
-  setSaveMessage("");
-  setTimeLeft(60);
-  setMatchStarted(false);
-}
 
   if (!historyLoaded) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#0e7490" />
-        <Text style={styles.feedback}>Loading your saved scores...</Text>
+        <Text style={styles.feedback}>
+          Loading your saved scores...
+        </Text>
       </View>
     );
   }
@@ -249,156 +276,182 @@ setFinished(false);
       keyboardShouldPersistTaps="handled"
     >
       <Text style={styles.title}>Ice Breaker</Text>
+
       <Text style={styles.subtitle}>
-  {!matchStarted
-    ? "Random Minigame Selection"
-    : selectedMinigame === "icebreaker-prompt"
-      ? "Icebreaker Prompt"
-      : "Question Challenge"}
-</Text>
+        {!matchStarted
+          ? "Random Minigame Selection"
+          : selectedMinigame === "icebreaker-prompt"
+            ? "Icebreaker Prompt"
+            : "Question Challenge"}
+      </Text>
 
       <Text style={styles.userText}>
         Logged in as {user?.email ?? "Student"}
       </Text>
-            {matchStarted && (
+
+      {matchStarted && (
         <Text style={styles.score}>
           Time left: {timeLeft} seconds
         </Text>
       )}
 
-{!matchStarted ? (
-  <View style={styles.card}>
-    <Text style={styles.question}>Ready to play?</Text>
-    <Text style={styles.feedback}>
-      Start a match and let the app choose your minigame.
-    </Text>
-    <Pressable style={styles.button} onPress={startMatch}>
-      <Text style={styles.buttonText}>Start Match</Text>
-    </Pressable>
-  </View>
-) : finished ? (
-  <View style={styles.card}>
-    <Text style={styles.question}>
-      {timeExpired ? "Time's up!" : "Game complete!"}
-    </Text>
+      {!matchStarted ? (
+        <View style={styles.card}>
+          <Text style={styles.question}>Ready to play?</Text>
 
-    {selectedMinigame === "question-challenge" ? (
-      <>
-        <Text style={styles.score}>
-          Your score: {score} / {questions.length}
-        </Text>
-        <Text style={styles.feedback}>
-          {timeExpired
-            ? "Time ran out. Nice effort!"
-            : score === questions.length
-              ? "Perfect score! Great job!"
-              : "Nice effort! Play again to improve your score."}
-        </Text>
-        {!!saveMessage && (
-          <Text style={styles.feedback}>{saveMessage}</Text>
-        )}
-      </>
-    ) : (
-      <Text style={styles.feedback}>
-        Your minigame has ended. Start another match to play again!
-      </Text>
-    )}
-
-    <Pressable style={styles.button} onPress={restartGame}>
-      <Text style={styles.buttonText}>Play Again</Text>
-    </Pressable>
-  </View>
-) : selectedMinigame === "icebreaker-prompt" ? (
-  <View style={styles.card}>
-    <Text style={styles.question}>Icebreaker Prompt</Text>
-    <Text style={styles.feedback}>
-      Take turns answering this question!
-    </Text>
-    <Text style={styles.question}>
-      {icebreakerPrompts[promptIndex]}
-    </Text>
-
-    <Pressable
-      style={styles.button}
-      onPress={() =>
-        setPromptIndex(
-          (previousIndex) =>
-            (previousIndex + 1) % icebreakerPrompts.length
-        )
-      }
-    >
-      <Text style={styles.buttonText}>Next Prompt</Text>
-    </Pressable>
-
-    <Pressable
-      style={styles.button}
-      onPress={() => {
-        setTimeLeft(60);
-        setTimeExpired(false);
-        setMatchStarted(false);
-        setFinished(false);
-      }}
-    >
-      <Text style={styles.buttonText}>Back to Match Menu</Text>
-    </Pressable>
-  </View>
-) : (
-  <View style={styles.card}>
-    <Text style={styles.progress}>
-      Question {questionIndex + 1} of {questions.length}
-    </Text>
-    <Text style={styles.question}>
-      {currentQuestion.question}
-    </Text>
-
-    {currentQuestion.answers.map((answer, index) => {
-      const isCorrect = index === currentQuestion.correctAnswer;
-      const isSelected = index === selectedAnswer;
-
-      return (
-        <Pressable
-          key={answer}
-          style={[
-            styles.answer,
-            selectedAnswer !== null && isCorrect
-              ? styles.correctAnswer
-              : null,
-            isSelected && !isCorrect ? styles.wrongAnswer : null,
-          ]}
-          onPress={() => chooseAnswer(index)}
-          disabled={selectedAnswer !== null || finished}
-        >
-          <Text style={styles.answerText}>{answer}</Text>
-        </Pressable>
-      );
-    })}
-
-    {selectedAnswer !== null && (
-      <>
-        <Text style={styles.feedback}>
-          {selectedAnswer === currentQuestion.correctAnswer
-            ? "Correct! Well done."
-            : "Not quite! The correct answer is highlighted."}
-        </Text>
-        <Pressable
-          style={styles.button}
-          onPress={() => void nextQuestion()}
-          disabled={savingScore}
-        >
-          <Text style={styles.buttonText}>
-            {questionIndex === questions.length - 1
-              ? "Finish Game"
-              : "Next Question"}
+          <Text style={styles.feedback}>
+            Start a match and let the app choose your minigame.
           </Text>
-        </Pressable>
-      </>
-    )}
 
-    <Text style={styles.score}>
-      Score: {score} / {questions.length}
-    </Text>
-  </View>
-)}
+          <Pressable style={styles.button} onPress={startMatch}>
+            <Text style={styles.buttonText}>Start Match</Text>
+          </Pressable>
+        </View>
+      ) : finished ? (
+        <View style={styles.card}>
+          <Text style={styles.question}>
+            {timeExpired ? "Time's up!" : "Game complete!"}
+          </Text>
+
+          {selectedMinigame === "question-challenge" ? (
+            <>
+              <Text style={styles.score}>
+                Your score: {score} / {questions.length}
+              </Text>
+
+              <Text style={styles.feedback}>
+                {timeExpired
+                  ? "Time ran out. Nice effort!"
+                  : score === questions.length
+                    ? "Perfect score! Great job!"
+                    : "Nice effort! Play again to improve your score."}
+              </Text>
+
+              {!!saveMessage && (
+                <Text style={styles.feedback}>{saveMessage}</Text>
+              )}
+
+              {savingScore && (
+                <Text style={styles.feedback}>Saving your score...</Text>
+              )}
+
+              {!savingScore && !!saveMessage && (
+                <Pressable
+                  style={styles.button}
+                  onPress={() => void finishGame()}
+                  disabled={savingScore}
+                >
+                  <Text style={styles.buttonText}>Retry Score Save</Text>
+                </Pressable>
+              )}
+            </>
+          ) : (
+            <Text style={styles.feedback}>
+              Your minigame has ended. Start another match to play again!
+            </Text>
+          )}
+
+          <Pressable style={styles.button} onPress={restartGame}>
+            <Text style={styles.buttonText}>Play Again</Text>
+          </Pressable>
+        </View>
+      ) : selectedMinigame === "icebreaker-prompt" ? (
+        <View style={styles.card}>
+          <Text style={styles.question}>Icebreaker Prompt</Text>
+
+          <Text style={styles.feedback}>
+            Take turns answering this question!
+          </Text>
+
+          <Text style={styles.question}>
+            {icebreakerPrompts[promptIndex]}
+          </Text>
+
+          <Pressable
+            style={styles.button}
+            onPress={() =>
+              setPromptIndex(
+                (previousIndex) =>
+                  (previousIndex + 1) % icebreakerPrompts.length
+              )
+            }
+          >
+            <Text style={styles.buttonText}>Next Prompt</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.button}
+            onPress={() => {
+              setTimeLeft(60);
+              setTimeExpired(false);
+              setMatchStarted(false);
+              setFinished(false);
+            }}
+          >
+            <Text style={styles.buttonText}>Back to Match Menu</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <View style={styles.card}>
+          <Text style={styles.progress}>
+            Question {questionIndex + 1} of {questions.length}
+          </Text>
+
+          <Text style={styles.question}>
+            {currentQuestion.question}
+          </Text>
+
+          {currentQuestion.answers.map((answer, index) => {
+            const isCorrect = index === currentQuestion.correctAnswer;
+            const isSelected = index === selectedAnswer;
+
+            return (
+              <Pressable
+                key={answer}
+                style={[
+                  styles.answer,
+                  selectedAnswer !== null && isCorrect
+                    ? styles.correctAnswer
+                    : null,
+                  isSelected && !isCorrect
+                    ? styles.wrongAnswer
+                    : null,
+                ]}
+                onPress={() => chooseAnswer(index)}
+                disabled={selectedAnswer !== null || finished}
+              >
+                <Text style={styles.answerText}>{answer}</Text>
+              </Pressable>
+            );
+          })}
+
+          {selectedAnswer !== null && (
+            <>
+              <Text style={styles.feedback}>
+                {selectedAnswer === currentQuestion.correctAnswer
+                  ? "Correct! Well done."
+                  : "Not quite! The correct answer is highlighted."}
+              </Text>
+
+              <Pressable
+                style={styles.button}
+                onPress={() => void nextQuestion()}
+                disabled={savingScore}
+              >
+                <Text style={styles.buttonText}>
+                  {questionIndex === questions.length - 1
+                    ? "Finish Game"
+                    : "Next Question"}
+                </Text>
+              </Pressable>
+            </>
+          )}
+
+          <Text style={styles.score}>
+            Score: {score} / {questions.length}
+          </Text>
+        </View>
+      )}
 
       <View style={styles.historyCard}>
         <Text style={styles.historyTitle}>Saved Score History</Text>
