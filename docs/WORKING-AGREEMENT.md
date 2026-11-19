@@ -1,4 +1,5 @@
 # Working Agreement
+
 NOTE: Claude AI was used to draft this file
 
 This is how we actually worked with our genAI teammate, and how we would ask the next team to work with theirs. It describes practices, not people. For project status, see [HANDOFF.md](HANDOFF.md).

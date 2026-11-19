@@ -1,4 +1,5 @@
 # Handoff
+
 NOTE: Claude AI was used to draft this file
 
 This page is for the next team (and its genAI teammate). It says what exists, what is rough, what is still open, and what we would do next. For how we worked, see [WORKING-AGREEMENT.md](WORKING-AGREEMENT.md). To run the app, see the [README](../README.md#getting-started).
