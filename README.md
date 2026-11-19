@@ -1,5 +1,7 @@
 # Ice Breaker
 
+Our Current Deployment: https://ice-breaker-game.github.io/break-the-ice/
+
 ## Project Overview
 
 **Ice Breaker** is a location-based game platform that helps people in the same community meet and connect. Any organization can use it: schools, libraries, clubs, workplaces, community centers and more. Organizers create interactive games with their own content, and members play them together in person at approved locations.
