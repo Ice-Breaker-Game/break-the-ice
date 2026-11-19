@@ -44,4 +44,4 @@ We pasted the prompt into a fresh chat with no repo access and asked for a summa
 
 - **Right:** it summarized the product, stack and free-plan limits correctly, and it named the same next priority.
 - **Wrong:** it assumed the project uses bun, so the prompt now says npm. It also treated the example schema as approved, so the prompt now says "not yet approved."
-- **Useful:** it asked how players get paired before proximity matching exists. That's an open question for `docs/HANDOFF.md`.
+- **Useful:** it asked how players get paired before proximity matching exists. We don't have an answer yet. Whoever builds two-player matches needs to decide it.
