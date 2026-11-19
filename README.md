@@ -8,7 +8,7 @@ The goal of **Ice Breaker** is to give people a fun, natural way to interact wit
 
 ## Product Vision
 
-> **For** organizations and their members who want a safe and engaging way for people to meet and connect, **Ice Breaker** is a location-based game platform that lets organizers turn their own content into games that members play together at approved locations. **Unlike** generic quiz and trivia apps, our product combines in-person connection with gameplay, gives organizers a simple game-building interface, and gives them moderation tools to keep the experience safe, appropriate and accessible to everyone.
+> **For** organizations and their members who want a safe and engaging way for people to meet and connect, **Ice Breaker** is a location-based game platform that supplies players inside of organizations (such as schools or other social venues) a way to meet people via a collection of proximity activated minigames. **Unlike** generic meetup apps our product combines in-person connection with small but engaging moments of gameplay to help foster conversation. Our product will also provide tools to organizers such that they can build new games and moderate the group to keep the experiance safe for everyone. 
 
 ## Who It's For
 
@@ -236,3 +236,22 @@ const { activeOrgId, setActiveOrgId, loading } = useOrg();
 * `loading` is `true` for a moment while the saved choice is read from storage.
 * The choice is saved with AsyncStorage per user (`activeOrgId-{uid}`), so it stays after restarting the app, and switching accounts on the same device doesn't mix them up.
 * `OrgProvider` wraps every logged-in screen in `src/app/(logged-in)/_layout.tsx`, so `useOrg()` only works in logged-in screens.
+
+### Works
+- **Accounts:** sign up, log in, log out, forgot-password email. Logged-in and logged-out screens are separate route groups in `src/app/`.
+- **Organizations:** create one (the creator becomes admin), join with an invite code, switch the active organization, and list your organizations with your role.
+- **Invite codes:** unique, shareable and regenerable by admins.
+- **Members:** admins can view members and remove anyone but themselves.
+- **Safety:** members can block and report other members. Admins see a Reports tab.
+- **Profile:** edit display name and picture.
+- **Game:** the Question Challenge on the home screen (3 questions, 60-second timer, a random minigame, then an icebreaker prompt).
+- **Results and history:** `results.tsx` shows the latest game (percent bar, correct and missed counts, comparison with the previous game, personal best, average and best). `history.tsx` lists every saved game, newest first.
+- **Shared look:** one theme (`src/theme.ts`) and shared components (`src/components/`). New screens should use them.
+
+### Stubbed Or Not Built
+- **The game is single-player.** The README's vision is people playing together at approved locations. Nothing connects two players yet.
+- **Scores live on the device only** (AsyncStorage, key `question-challenge-scores-<user id>`). They are not in Firestore, so they do not follow a user to another phone.
+- **The organization page is a placeholder.**
+- **Game builder:** organizers cannot create games with their own content yet.**
+- **Location and map:** a map and proximity feature was developed on a separate branch and is currently only working on android devices. it displays a map and centers on your current position but has no ability to display other users yet or detect when another user is close by.**
+- **The game end screen shows its own score card** and does not navigate to `/results`. The two screens are separate on purpose (see below).
