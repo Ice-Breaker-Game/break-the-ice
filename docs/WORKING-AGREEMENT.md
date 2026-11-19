@@ -3,8 +3,6 @@ NOTE: Claude AI was used to draft this file
 
 This is how we actually worked with our genAI teammate, and how we would ask the next team to work with theirs. It describes practices, not people. For project status, see [HANDOFF.md](HANDOFF.md).
 
-> **Draft note:** the "Our protocol" column below needs the lines from the Architecture Investigation protocol. Replace each `[protocol: …]` before submitting. The "What we did" column is written from our own sessions.
-
 ## The agreement
 
 1. **The genAI proposes; a person decides.** Generated code, stories and text are drafts. Nothing goes into the repo until a person has read it and run it. We asked the genAI not to change files until we had reviewed its plan.
@@ -17,7 +15,6 @@ This is how we actually worked with our genAI teammate, and how we would ask the
 8. **Push back on requirements together.** We ask the genAI to critique a user story (who, why, testable criteria) before we post it. The genAI says when it is guessing, and the team checks the guess against the real source, such as an instructor's feedback.
 9. **Check current facts.** Expo changes every release, so the genAI fetches the docs for the project's SDK version instead of answering from memory (this is in `AGENTS.md`).
 10. **Say what the genAI did.** We label genAI contributions and cite the tool where required. Evidence stays in our own notes, not in the public repo.
-
 
 ## What changed and why
 
