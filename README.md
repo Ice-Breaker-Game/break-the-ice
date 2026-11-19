@@ -251,7 +251,6 @@ const { activeOrgId, setActiveOrgId, loading } = useOrg();
 ### Stubbed Or Not Built
 - **The game is single-player.** The README's vision is people playing together at approved locations. Nothing connects two players yet.
 - **Scores live on the device only** (AsyncStorage, key `question-challenge-scores-<user id>`). They are not in Firestore, so they do not follow a user to another phone.
-- **The organization page is a placeholder.**
 - **Game builder:** organizers cannot create games with their own content yet.**
 - **Location and map:** a map and proximity feature was developed on a separate branch and is currently only working on android devices. it displays a map and centers on your current position but has no ability to display other users yet or detect when another user is close by.**
 - **The game end screen shows its own score card** and does not navigate to `/results`. The two screens are separate on purpose (see below).
